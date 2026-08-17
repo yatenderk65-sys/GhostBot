@@ -6,7 +6,7 @@ from pyrogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 API_ID = 36511364  
 API_HASH = "249685fabdef6018e8c84dec25942b91"  
-BOT_TOKEN = "8665755396:AAHimiqSdNLwSbGlBkb_B0opqebi-lpQYlM"  
+BOT_TOKEN = "8608879552:AAHwDrvWXsBSR2H7E8B-E4gPVOie-052urw"  
 
 app = Client(
     "ghost_session", 
