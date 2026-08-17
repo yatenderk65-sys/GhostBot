@@ -1,28 +1,19 @@
-import sys
-import asyncio
-
-# --- WINDOWS FREEZE FIX ---
-if sys.platform == 'win32':
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-try:
-    loop = asyncio.get_event_loop()
-except RuntimeError:
-    asyncio.set_event_loop(asyncio.new_event_loop())
-
 import os
 import random
-import subprocess
+import asyncio
 from pyrogram import Client, filters
 from pyrogram.types import ReplyKeyboardMarkup, KeyboardButton
 
-# ==================== CONFIGURATION ====================
 API_ID = 36511364  
 API_HASH = "249685fabdef6018e8c84dec25942b91"  
 BOT_TOKEN = "8665755396:AAHimiqSdNLwSbGlBkb_B0opqebi-lpQYlM"  
 
-app = Client("ghost_session", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
-
-app.start()
+app = Client(
+    "ghost_session", 
+    api_id=API_ID, 
+    api_hash=API_HASH, 
+    bot_token=BOT_TOKEN
+)
 
 DOWNLOAD_DIR = "downloads"
 PROCESSED_DIR = "processed"
@@ -54,14 +45,13 @@ def get_main_menu():
 
 @app.on_message(filters.command("start"))
 async def start_cmd(client, message):
-    print(f"✅ BINGO! {message.from_user.first_name} ne bot ko chalaya!")
-    welcome_text = (
+    await message.reply_text(
         "🤖 **GHOST OPERATOR ACTIVE**\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n"
         "System secure. Meta & YouTube AI bypass pipeline active.\n\n"
-        "Choose an option below and send your asset."
+        "Choose an option below and send your asset.",
+        reply_markup=get_main_menu()
     )
-    await message.reply_text(welcome_text, reply_markup=get_main_menu())
 
 @app.on_message(filters.regex(r"^(📸 Image Stealth Wash|🎥 Video Stealth Wash|🔕 Mute & Wash Video|📺 YouTube Stealth Wash \(20\+ Min\))$"))
 async def set_mode(client, message):
@@ -88,25 +78,21 @@ async def handle_media(client, message):
         ext = file_path.split(".")[-1].lower()
         processed_path = os.path.join(PROCESSED_DIR, f"clean_{user_id}_{random.randint(1000,9999)}.{ext}")
 
-        ffmpeg_cmd = 'ffmpeg'
-        if os.path.exists('ffmpeg.exe'):
-            ffmpeg_cmd = './ffmpeg.exe'
-
         if mode == "📸 Image Stealth Wash":
             vf = "hflip,drawtext=text='Alishya Oberoi':x=(w-text_w)/2:y=h-th-40:fontsize=36:fontcolor=white@0.7"
-            cmd = [ffmpeg_cmd, '-y', '-i', file_path, '-vf', vf, '-q:v', '2', processed_path]
+            cmd = ['ffmpeg', '-y', '-i', file_path, '-vf', vf, '-q:v', '2', processed_path]
         
         elif mode == "🎥 Video Stealth Wash":
             vf = "hflip,setpts=1/1.08*PTS,drawtext=text='Alishya Oberoi':x=(w-text_w)/2:y=h-th-40:fontsize=36:fontcolor=white@0.7"
-            cmd = [ffmpeg_cmd, '-y', '-i', file_path, '-vf', vf, '-af', 'atempo=1.08', '-c:v', 'libx264', '-crf', '18', '-preset', 'fast', '-c:a', 'aac', processed_path]
+            cmd = ['ffmpeg', '-y', '-i', file_path, '-vf', vf, '-af', 'atempo=1.08', '-c:v', 'libx264', '-crf', '18', '-preset', 'fast', '-c:a', 'aac', processed_path]
 
         elif mode == "🔕 Mute & Wash Video":
             vf = "hflip,setpts=1/1.08*PTS,drawtext=text='Alishya Oberoi':x=(w-text_w)/2:y=h-th-40:fontsize=36:fontcolor=white@0.7"
-            cmd = [ffmpeg_cmd, '-y', '-i', file_path, '-vf', vf, '-an', '-c:v', 'libx264', '-crf', '18', '-preset', 'fast', processed_path]
+            cmd = ['ffmpeg', '-y', '-i', file_path, '-vf', vf, '-an', '-c:v', 'libx264', '-crf', '18', '-preset', 'fast', processed_path]
 
         elif mode == "📺 YouTube Stealth Wash (20+ Min)":
             vf = "crop=iw*0.95:ih*0.95,scale=iw:ih,hflip,eq=contrast=1.04:brightness=0.02:saturation=1.05,setpts=1/1.08*PTS,drawtext=text='Professionals Group':x=(w-text_w)/2:y=h-th-50:fontsize=42:fontcolor=white@0.7"
-            cmd = [ffmpeg_cmd, '-y', '-i', file_path, '-vf', vf, '-af', 'atempo=1.08', '-c:v', 'libx264', '-crf', '20', '-preset', 'medium', '-c:a', 'aac', processed_path]
+            cmd = ['ffmpeg', '-y', '-i', file_path, '-vf', vf, '-af', 'atempo=1.08', '-c:v', 'libx264', '-crf', '20', '-preset', 'medium', '-c:a', 'aac', processed_path]
 
         process = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
         await process.communicate()
@@ -134,5 +120,5 @@ async def handle_media(client, message):
             os.remove(processed_path)
 
 if __name__ == "__main__":
-    print("🚀 Ghost Operator Pyrogram Engine is Running! Badi files aane do...")
+    print("🚀 Ghost Operator Pyrogram Engine is Running on Cloud...")
     app.run()
