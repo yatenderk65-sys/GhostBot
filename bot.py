@@ -19,7 +19,7 @@ PROCESSED_DIR = "processed"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 os.makedirs(PROCESSED_DIR, exist_ok=True)
 
-# Smart Memory Dictionaries
+# Memory Dictionaries
 user_modes = {}
 user_watermarks = {}
 media_group_cache = {}
@@ -84,11 +84,10 @@ async def process_single_file(client, message, user_id, mode, apply_wm):
     ext = file_path.split(".")[-1].lower()
     processed_path = os.path.join(PROCESSED_DIR, f"clean_{user_id}_{random.randint(1000,99999)}.{ext}")
 
-    # Ultimate Stealth Filters (No HFLIP, Added Noise, EXIF Wiping, Micro-Crop)
     wm_alishya = "drawtext=text='𝘼𝙡𝙞𝙨𝙝𝙮𝙖 𝙊𝙗𝙚𝙧𝙤𝙞':x=(w-text_w)/2:y=h-th-40:fontsize=45:fontcolor=white@0.85:shadowcolor=black@0.6:shadowx=2:shadowy=2"
     wm_prof = "drawtext=text='𝐏𝐫𝐨𝐟𝐞𝐬𝐬𝐢𝐨𝐧𝐚𝐥𝐬 𝐆𝐫𝐨𝐮𝐩':x=(w-text_w)/2:y=h-th-50:fontsize=55:fontcolor=white@0.9:shadowcolor=black@0.8:shadowx=3:shadowy=3:borderw=1:bordercolor=white@0.3"
 
-    cmd = ['ffmpeg', '-y', '-i', file_path, '-map_metadata', '-1'] # -map_metadata -1 kills all EXIF/Tracking data
+    cmd = ['ffmpeg', '-y', '-i', file_path, '-map_metadata', '-1']
 
     if mode == "📸 Image Stealth Wash":
         vf = "crop=iw*0.98:ih*0.98,scale=iw:ih,eq=contrast=1.02:brightness=0.01,noise=alls=1:allf=t+u"
@@ -117,11 +116,15 @@ async def process_single_file(client, message, user_id, mode, apply_wm):
     return processed_path
 
 async def process_album_task(client, original_message, mg_id, user_id, mode, apply_wm):
-    await asyncio.sleep(5)  # Wait for all group media to arrive
+    await asyncio.sleep(5)
     messages = media_group_cache.pop(mg_id, [])
     if not messages: return
 
-    status_msg = await original_message.reply_text(f"📚 **Album Detected!** Processing {len(messages)} files together. Please wait...")
+    status_msg = None
+    try:
+        status_msg = await original_message.reply_text(f"📚 **Album Detected!** Processing {len(messages)} files together. Please wait...")
+    except Exception:
+        pass
     
     processed_files = []
     media_group_to_send = []
@@ -136,14 +139,23 @@ async def process_album_task(client, original_message, mg_id, user_id, mode, app
             else:
                 media_group_to_send.append(InputMediaVideo(media=out_path))
 
-        await status_msg.edit_text("📤 **Uploading your Album...**")
+        if status_msg:
+            try:
+                await status_msg.edit_text("📤 **Uploading your Album...**")
+            except Exception:
+                pass
+
         await client.send_media_group(chat_id=user_id, media=media_group_to_send)
         
         selected_caption, selected_pinned = random.choice(CAPTIONS_SET)
         await original_message.reply_text(f"📝 **1-TAP COPY CAPTION FOR ALBUM:**\n`{selected_caption}`")
         await original_message.reply_text(f"💬 **1-TAP COPY PINNED COMMENT:**\n`{selected_pinned}`")
         
-        await status_msg.delete()
+        if status_msg:
+            try:
+                await status_msg.delete()
+            except Exception:
+                pass
 
     except Exception as e:
         await original_message.reply_text(f"❌ **Album Error:** {str(e)}")
@@ -166,7 +178,6 @@ async def handle_media(client, message):
     mode = user_modes[user_id]
     apply_wm = user_watermarks[user_id]
 
-    # ALBUM HANDLING LOGIC
     if message.media_group_id:
         mg_id = message.media_group_id
         if mg_id not in media_group_cache:
@@ -175,19 +186,38 @@ async def handle_media(client, message):
         media_group_cache[mg_id].append(message)
         return
 
-    # SINGLE FILE HANDLING LOGIC
-    processing_msg = await message.reply_text("📥 **Downloading single asset...**")
+    processing_msg = None
     try:
-        await processing_msg.edit_text("🔄 **Executing Advanced AI Stealth Bypass...**")
+        processing_msg = await message.reply_text("📥 **Downloading single asset...**")
+    except Exception:
+        pass
+
+    try:
+        if processing_msg:
+            try:
+                await processing_msg.edit_text("🔄 **Executing Advanced AI Stealth Bypass...**")
+            except Exception:
+                pass
+
         processed_path = await process_single_file(client, message, user_id, mode, apply_wm)
         
-        await processing_msg.edit_text("📤 **Uploading washed asset...**")
+        if processing_msg:
+            try:
+                await processing_msg.edit_text("📤 **Uploading washed asset...**")
+            except Exception:
+                pass
+
         if mode == "📸 Image Stealth Wash":
             await message.reply_photo(photo=processed_path)
         else:
             await message.reply_video(video=processed_path, supports_streaming=True)
 
-        await processing_msg.delete()
+        if processing_msg:
+            try:
+                await processing_msg.delete()
+            except Exception:
+                pass
+
         selected_caption, selected_pinned = random.choice(CAPTIONS_SET)
         await message.reply_text(f"📝 **1-TAP COPY CAPTION:**\n`{selected_caption}`")
         await message.reply_text(f"💬 **1-TAP COPY PINNED COMMENT:**\n`{selected_pinned}`")
@@ -195,7 +225,13 @@ async def handle_media(client, message):
         if os.path.exists(processed_path): os.remove(processed_path)
 
     except Exception as e:
-        await processing_msg.edit_text(f"❌ **Error:** {str(e)}")
+        if processing_msg:
+            try:
+                await processing_msg.edit_text(f"❌ **Error:** {str(e)}")
+            except Exception:
+                await message.reply_text(f"❌ **Error:** {str(e)}")
+        else:
+            await message.reply_text(f"❌ **Error:** {str(e)}")
 
 if __name__ == "__main__":
     print("🚀 Ultimate Stealth Pipeline Active...")
