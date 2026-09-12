@@ -35,6 +35,22 @@ CAPTIONS_SET = [
     )
 ]
 
+async def safe_edit(msg, text):
+    if not msg:
+        return
+    try:
+        await msg.edit_text(text)
+    except Exception:
+        pass
+
+async def safe_delete(msg):
+    if not msg:
+        return
+    try:
+        await msg.delete()
+    except Exception:
+        pass
+
 def get_watermark_menu():
     return ReplyKeyboardMarkup(
         [[KeyboardButton("✅ Yes, Add Watermark"), KeyboardButton("❌ No Watermark")]],
@@ -139,23 +155,14 @@ async def process_album_task(client, original_message, mg_id, user_id, mode, app
             else:
                 media_group_to_send.append(InputMediaVideo(media=out_path))
 
-        if status_msg:
-            try:
-                await status_msg.edit_text("📤 **Uploading your Album...**")
-            except Exception:
-                pass
-
+        await safe_edit(status_msg, "📤 **Uploading your Album...**")
         await client.send_media_group(chat_id=user_id, media=media_group_to_send)
         
         selected_caption, selected_pinned = random.choice(CAPTIONS_SET)
         await original_message.reply_text(f"📝 **1-TAP COPY CAPTION FOR ALBUM:**\n`{selected_caption}`")
         await original_message.reply_text(f"💬 **1-TAP COPY PINNED COMMENT:**\n`{selected_pinned}`")
         
-        if status_msg:
-            try:
-                await status_msg.delete()
-            except Exception:
-                pass
+        await safe_delete(status_msg)
 
     except Exception as e:
         await original_message.reply_text(f"❌ **Album Error:** {str(e)}")
@@ -193,30 +200,16 @@ async def handle_media(client, message):
         pass
 
     try:
-        if processing_msg:
-            try:
-                await processing_msg.edit_text("🔄 **Executing Advanced AI Stealth Bypass...**")
-            except Exception:
-                pass
-
+        await safe_edit(processing_msg, "🔄 **Executing Advanced AI Stealth Bypass...**")
         processed_path = await process_single_file(client, message, user_id, mode, apply_wm)
-        
-        if processing_msg:
-            try:
-                await processing_msg.edit_text("📤 **Uploading washed asset...**")
-            except Exception:
-                pass
+        await safe_edit(processing_msg, "📤 **Uploading washed asset...**")
 
         if mode == "📸 Image Stealth Wash":
             await message.reply_photo(photo=processed_path)
         else:
             await message.reply_video(video=processed_path, supports_streaming=True)
 
-        if processing_msg:
-            try:
-                await processing_msg.delete()
-            except Exception:
-                pass
+        await safe_delete(processing_msg)
 
         selected_caption, selected_pinned = random.choice(CAPTIONS_SET)
         await message.reply_text(f"📝 **1-TAP COPY CAPTION:**\n`{selected_caption}`")
@@ -225,13 +218,7 @@ async def handle_media(client, message):
         if os.path.exists(processed_path): os.remove(processed_path)
 
     except Exception as e:
-        if processing_msg:
-            try:
-                await processing_msg.edit_text(f"❌ **Error:** {str(e)}")
-            except Exception:
-                await message.reply_text(f"❌ **Error:** {str(e)}")
-        else:
-            await message.reply_text(f"❌ **Error:** {str(e)}")
+        await message.reply_text(f"❌ **Error:** {str(e)}")
 
 if __name__ == "__main__":
     print("🚀 Ultimate Stealth Pipeline Active...")
