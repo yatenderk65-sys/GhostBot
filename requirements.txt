@@ -1,3 +1,4 @@
 pyrogram
 pyaes
 pysocks
+yt-dlp
