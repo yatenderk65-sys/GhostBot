@@ -5,7 +5,7 @@ import asyncio
 import yt_dlp
 from pyrogram import Client, filters
 from pyrogram.types import ReplyKeyboardMarkup, KeyboardButton, InputMediaPhoto, InputMediaVideo
-from pyrogram.errors import MessageNotModified, MessageIdInvalid, RPCError
+from pyrogram.errors import MessageNotModified, RPCError
 
 # ==========================================
 # 🛑 PASTE YOUR NEW BOT TOKEN BELOW
@@ -70,10 +70,11 @@ def get_main_menu():
         resize_keyboard=True
     )
 
-@app.on_message(filters.command("start"))
+@app.on_message(filters.command(["start", "menu"]))
 async def start_cmd(client, message):
+    # VERSION TAG ADDED HERE TO VERIFY RAILWAY DEPLOYMENT
     await message.reply_text(
-        "🤖 **GHOST OPERATOR ACTIVE**\n"
+        "🤖 **GHOST OPERATOR ACTIVE (V5.0 - INSTA UPDATE)**\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n"
         "Do you want to add the Crystal Watermark on your files?",
         reply_markup=get_watermark_menu()
@@ -205,12 +206,11 @@ def fetch_insta_post(url, download_folder):
         caption = info.get('description') or info.get('title') or ""
         return caption
 
-@app.on_message(filters.text & ~filters.command(["start"]))
+@app.on_message(filters.text & ~filters.command(["start", "menu"]))
 async def handle_text_messages(client, message):
     user_id = message.from_user.id
     text = message.text.strip()
 
-    # Ignore menu button clicks
     if text in ["📸 Image Stealth Wash", "🎥 Video Stealth Wash", "🔕 Mute & Wash Video", 
                 "📺 YouTube Stealth Wash", "📺 YouTube Stealth Wash (20+ Min)", 
                 "🔗 Insta Link Stealth Wash", "✅ Yes, Add Watermark", "❌ No Watermark"]:
