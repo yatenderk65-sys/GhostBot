@@ -5,7 +5,7 @@ import asyncio
 import yt_dlp
 from pyrogram import Client, filters
 from pyrogram.types import ReplyKeyboardMarkup, KeyboardButton, InputMediaPhoto, InputMediaVideo
-from pyrogram.errors import MessageNotModified, RPCError
+from pyrogram.errors import MessageNotModified, MessageIdInvalid, RPCError
 
 # ==========================================
 # 🛑 PASTE YOUR NEW BOT TOKEN BELOW
@@ -43,7 +43,7 @@ async def safe_edit(msg, text):
         return
     try:
         await msg.edit_text(text)
-    except (MessageNotModified, RPCError, Exception):
+    except Exception:
         pass
 
 async def safe_delete(msg):
@@ -51,7 +51,7 @@ async def safe_delete(msg):
         return
     try:
         await msg.delete()
-    except (RPCError, Exception):
+    except Exception:
         pass
 
 def get_watermark_menu():
@@ -63,9 +63,8 @@ def get_watermark_menu():
 def get_main_menu():
     return ReplyKeyboardMarkup(
         [
-            [KeyboardButton("📸 Image Stealth Wash")],
-            [KeyboardButton("🎥 Video Stealth Wash"), KeyboardButton("🔕 Mute & Wash Video")],
-            [KeyboardButton("📺 YouTube Stealth Wash (20+ Min)")],
+            [KeyboardButton("📸 Image Stealth Wash"), KeyboardButton("🎥 Video Stealth Wash")],
+            [KeyboardButton("🔕 Mute & Wash Video"), KeyboardButton("📺 YouTube Stealth Wash")],
             [KeyboardButton("🔗 Insta Link Stealth Wash")]
         ],
         resize_keyboard=True
@@ -91,7 +90,7 @@ async def set_watermark(client, message):
         reply_markup=get_main_menu()
     )
 
-@app.on_message(filters.regex(r"^(📸 Image Stealth Wash|🎥 Video Stealth Wash|🔕 Mute & Wash Video|📺 YouTube Stealth Wash \(20\+ Min\)|🔗 Insta Link Stealth Wash)$"))
+@app.on_message(filters.regex(r"^(📸 Image Stealth Wash|🎥 Video Stealth Wash|🔕 Mute & Wash Video|📺 YouTube Stealth Wash.*|🔗 Insta Link Stealth Wash)$"))
 async def set_mode(client, message):
     user_modes[message.from_user.id] = message.text
     if message.text == "🔗 Insta Link Stealth Wash":
@@ -112,7 +111,7 @@ async def process_single_file(client, message_or_path, user_id, mode, apply_wm):
 
     wm_alishya = "drawtext=text='𝘼𝙡𝙞𝙨𝙝𝙮𝙖 𝙊𝙗𝙚𝙧𝙤𝙞':x=(w-text_w)/2:y=h-th-40:fontsize=45:fontcolor=white@0.85:shadowcolor=black@0.6:shadowx=2:shadowy=2"
     wm_prof = "drawtext=text='𝐏𝐫𝐨𝐟𝐞𝐬𝐬𝐢𝐨𝐧𝐚𝐥𝐬 𝐆𝐫𝐨𝐮𝐩':x=(w-text_w)/2:y=h-th-50:fontsize=55:fontcolor=white@0.9:shadowcolor=black@0.8:shadowx=3:shadowy=3:borderw=1:bordercolor=white@0.3"
-    wm_insta = "drawtext=text='𝙏𝙧𝙪𝙨𝙩𝙚𝙙 𝙁𝙁 𝙈𝙖𝙧𝙠𝙚𝙩𝙥𝙡𝙖𝙘𝙚':x=(w-text_w)/2:y=h-th-40:fontsize=45:fontcolor=white@0.85:shadowcolor=black@0.6:shadowx=2:shadowy=2"
+    wm_insta = "drawtext=text='Trusted FF Marketplace':x=(w-text_w)/2:y=h-th-40:fontsize=45:fontcolor=white@0.85:shadowcolor=black@0.6:shadowx=2:shadowy=2"
 
     cmd = ['ffmpeg', '-y', '-i', file_path, '-map_metadata', '-1']
 
@@ -131,7 +130,7 @@ async def process_single_file(client, message_or_path, user_id, mode, apply_wm):
         if apply_wm: vf += f",{wm_alishya}"
         cmd.extend(['-vf', vf, '-an', '-c:v', 'libx264', '-crf', '18', '-preset', 'fast', processed_path])
 
-    elif mode == "📺 YouTube Stealth Wash (20+ Min)":
+    elif "YouTube Stealth Wash" in mode:
         vf = "crop=iw*0.95:ih*0.95,scale=iw:ih,eq=contrast=1.05:brightness=0.02:saturation=1.07,noise=alls=1:allf=t+u,setpts=1/1.04*PTS"
         if apply_wm: vf += f",{wm_prof}"
         cmd.extend(['-vf', vf, '-af', 'atempo=1.04,asetrate=44100*1.01', '-c:v', 'libx264', '-crf', '20', '-preset', 'medium', '-c:a', 'aac', processed_path])
@@ -197,16 +196,26 @@ def fetch_insta_post(url, download_folder):
         'outtmpl': os.path.join(download_folder, '%(id)s_%(autonumber)02d.%(ext)s'),
         'quiet': True,
         'no_warnings': True,
+        'ignoreerrors': True,
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
+        if not info:
+            return ""
         caption = info.get('description') or info.get('title') or ""
         return caption
 
-@app.on_message(filters.text & filters.regex(r"https?://(www\.)?instagram\.com/(p|reel|reels|share)/[\w-]+"))
-async def handle_insta_link(client, message):
+@app.on_message(filters.text & ~filters.command(["start"]))
+async def handle_text_messages(client, message):
     user_id = message.from_user.id
-    
+    text = message.text.strip()
+
+    # Ignore menu button clicks
+    if text in ["📸 Image Stealth Wash", "🎥 Video Stealth Wash", "🔕 Mute & Wash Video", 
+                "📺 YouTube Stealth Wash", "📺 YouTube Stealth Wash (20+ Min)", 
+                "🔗 Insta Link Stealth Wash", "✅ Yes, Add Watermark", "❌ No Watermark"]:
+        return
+
     if user_id not in user_modes or user_modes[user_id] != "🔗 Insta Link Stealth Wash":
         await message.reply_text("⚠️ Please select `🔗 Insta Link Stealth Wash` mode from the menu first!")
         return
@@ -214,9 +223,14 @@ async def handle_insta_link(client, message):
         await message.reply_text("⚠️ Please select Watermark Yes/No from the /start menu first!")
         return
 
-    url = message.text.strip()
+    if not ("instagram.com" in text or "instagr.am" in text or text.startswith("http")):
+        await message.reply_text("⚠️ Please send a valid Instagram Post / Reel / Carousel link!")
+        return
+
+    urls = re.findall(r'https?://[^\s]+', text)
+    url = urls[0] if urls else text
+
     apply_wm = user_watermarks[user_id]
-    
     status_msg = await message.reply_text("📥 **Fetching Instagram Media & Slides...**")
     task_dir = os.path.join(DOWNLOAD_DIR, f"insta_{user_id}_{random.randint(1000,9999)}")
     os.makedirs(task_dir, exist_ok=True)
@@ -226,7 +240,7 @@ async def handle_insta_link(client, message):
         downloaded_files = sorted([os.path.join(task_dir, f) for f in os.listdir(task_dir) if os.path.isfile(os.path.join(task_dir, f))])
 
         if not downloaded_files:
-            await safe_edit(status_msg, "❌ **Error:** No media could be extracted from this link.")
+            await safe_edit(status_msg, "❌ **Error:** No media could be extracted. Make sure the link is from a public post/reel!")
             return
 
         await safe_edit(status_msg, f"🔄 **Executing Stealth Wash on {len(downloaded_files)} slide(s)...**")
@@ -258,7 +272,7 @@ async def handle_insta_link(client, message):
         await safe_delete(status_msg)
 
         final_caption = f"{caption}\n\n{HASHTAGS}" if caption else HASHTAGS
-        await message.reply_text(f"📝 **1-TAP COPY CAPTION:**\n`{final_caption}`")
+        await message.reply_text(f"📝 **1-TAP COPY CAPTION FOR INSTAGRAM:**\n`{final_caption}`")
 
     except Exception as e:
         await safe_edit(status_msg, f"❌ **Insta Link Error:** {str(e)}")
