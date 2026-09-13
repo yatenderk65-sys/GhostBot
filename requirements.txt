@@ -1,4 +1,3 @@
 pyrogram
-pyaes
-pysocks
+tgcrypto
 yt-dlp
