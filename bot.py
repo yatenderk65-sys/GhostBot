@@ -2,13 +2,24 @@ import os
 import re
 import random
 import asyncio
-import yt_dlp
+import sys
+import subprocess
+
+# ==========================================
+# 🛡️ AUTO-INSTALL MISSING MODULES (CRASH-PROOF)
+# ==========================================
+try:
+    import yt_dlp
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "yt-dlp"])
+    import yt_dlp
+
 from pyrogram import Client, filters
 from pyrogram.types import ReplyKeyboardMarkup, KeyboardButton, InputMediaPhoto, InputMediaVideo
 from pyrogram.errors import MessageNotModified, RPCError
 
 # ==========================================
-# 🛑 PASTE YOUR NEW BOT TOKEN BELOW
+# 🛑 PASTE YOUR BOT TOKEN BELOW
 # ==========================================
 API_ID = 36511364  
 API_HASH = "249685fabdef6018e8c84dec25942b91"  
@@ -72,7 +83,6 @@ def get_main_menu():
 
 @app.on_message(filters.command(["start", "menu"]))
 async def start_cmd(client, message):
-    # VERSION TAG ADDED HERE TO VERIFY RAILWAY DEPLOYMENT
     await message.reply_text(
         "🤖 **GHOST OPERATOR ACTIVE (V5.0 - INSTA UPDATE)**\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n"
