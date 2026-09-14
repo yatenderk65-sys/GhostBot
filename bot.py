@@ -6,7 +6,7 @@ import sys
 import subprocess
 
 # ==========================================
-# 🛡️ AUTO-INSTALL MISSING MODULES (CRASH-PROOF)
+# 🛡️ AUTO-INSTALL MISSING MODULES
 # ==========================================
 try:
     import yt_dlp
@@ -16,7 +16,6 @@ except ImportError:
 
 from pyrogram import Client, filters
 from pyrogram.types import ReplyKeyboardMarkup, KeyboardButton, InputMediaPhoto, InputMediaVideo
-from pyrogram.errors import MessageNotModified, RPCError
 
 # ==========================================
 # 🛑 PASTE YOUR BOT TOKEN BELOW
@@ -26,7 +25,6 @@ API_HASH = "249685fabdef6018e8c84dec25942b91"
 BOT_TOKEN = "8608879552:AAHwDrvWXsBSR2H7E8B-E4gPVOie-052urw"  # <-- Naya token yahan!
 
 app = Client("ghost_session", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
-app.no_updates = False
 
 DOWNLOAD_DIR = "downloads"
 PROCESSED_DIR = "processed"
@@ -50,20 +48,14 @@ CAPTIONS_SET = [
 ]
 
 async def safe_edit(msg, text):
-    if not msg:
-        return
-    try:
-        await msg.edit_text(text)
-    except Exception:
-        pass
+    if not msg: return
+    try: await msg.edit_text(text)
+    except Exception: pass
 
 async def safe_delete(msg):
-    if not msg:
-        return
-    try:
-        await msg.delete()
-    except Exception:
-        pass
+    if not msg: return
+    try: await msg.delete()
+    except Exception: pass
 
 def get_watermark_menu():
     return ReplyKeyboardMarkup(
@@ -84,32 +76,23 @@ def get_main_menu():
 @app.on_message(filters.command(["start", "menu"]))
 async def start_cmd(client, message):
     await message.reply_text(
-        "🤖 **GHOST OPERATOR ACTIVE (V5.0 - INSTA UPDATE)**\n"
+        "🤖 **GHOST OPERATOR ACTIVE (V5.0 CLEAN)**\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n"
-        "Do you want to add the Crystal Watermark on your files?",
-        reply_markup=get_watermark_menu()
+        "Send any media or Instagram link directly!",
+        reply_markup=get_main_menu()
     )
 
 @app.on_message(filters.regex(r"^(✅ Yes, Add Watermark|❌ No Watermark)$"))
 async def set_watermark(client, message):
     user_id = message.from_user.id
     user_watermarks[user_id] = True if "Yes" in message.text else False
-    
     status = "ON 🟢" if user_watermarks[user_id] else "OFF 🔴"
-    await message.reply_text(
-        f"💧 **Watermark Status:** {status}\nI will remember this! Now choose a processing mode below:",
-        reply_markup=get_main_menu()
-    )
+    await message.reply_text(f"💧 **Watermark:** {status}", reply_markup=get_main_menu())
 
 @app.on_message(filters.regex(r"^(📸 Image Stealth Wash|🎥 Video Stealth Wash|🔕 Mute & Wash Video|📺 YouTube Stealth Wash.*|🔗 Insta Link Stealth Wash)$"))
 async def set_mode(client, message):
     user_modes[message.from_user.id] = message.text
-    if message.text == "🔗 Insta Link Stealth Wash":
-        msg_text = "✅ **Mode Selected:** `🔗 Insta Link Stealth Wash`\n\nNow send any Instagram Post / Reel / Carousel Link directly here!"
-    else:
-        msg_text = f"✅ **Mode Selected:** `{message.text}`\n\nSend your file(s) or an entire Album directly here!"
-    
-    await message.reply_text(msg_text, reply_markup=get_main_menu())
+    await message.reply_text(f"✅ Mode: `{message.text}`", reply_markup=get_main_menu())
 
 async def process_single_file(client, message_or_path, user_id, mode, apply_wm):
     if isinstance(message_or_path, str):
@@ -146,7 +129,7 @@ async def process_single_file(client, message_or_path, user_id, mode, apply_wm):
         if apply_wm: vf += f",{wm_prof}"
         cmd.extend(['-vf', vf, '-af', 'atempo=1.04,asetrate=44100*1.01', '-c:v', 'libx264', '-crf', '20', '-preset', 'medium', '-c:a', 'aac', processed_path])
 
-    elif mode == "🔗 Insta Link Stealth Wash":
+    else:
         if ext in ['jpg', 'jpeg', 'png', 'webp']:
             vf = "crop=iw*0.98:ih*0.98,scale=iw:ih,eq=contrast=1.02:brightness=0.01,noise=alls=1:allf=t+u"
             if apply_wm: vf += f",{wm_insta}"
@@ -163,16 +146,11 @@ async def process_single_file(client, message_or_path, user_id, mode, apply_wm):
     return processed_path
 
 async def process_album_task(client, original_message, mg_id, user_id, mode, apply_wm):
-    await asyncio.sleep(5)
+    await asyncio.sleep(4)
     messages = media_group_cache.pop(mg_id, [])
     if not messages: return
 
-    status_msg = None
-    try:
-        status_msg = await original_message.reply_text(f"📚 **Album Detected!** Processing {len(messages)} files together. Please wait...")
-    except Exception:
-        pass
-    
+    status_msg = await original_message.reply_text(f"⏳ Processing Album ({len(messages)} files)...")
     processed_files = []
     media_group_to_send = []
 
@@ -180,24 +158,20 @@ async def process_album_task(client, original_message, mg_id, user_id, mode, app
         for msg in messages:
             out_path = await process_single_file(client, msg, user_id, mode, apply_wm)
             processed_files.append(out_path)
-            
-            if mode == "📸 Image Stealth Wash":
+            ext = out_path.split(".")[-1].lower()
+            if ext in ['jpg', 'jpeg', 'png', 'webp']:
                 media_group_to_send.append(InputMediaPhoto(media=out_path))
             else:
                 media_group_to_send.append(InputMediaVideo(media=out_path))
 
-        await safe_edit(status_msg, "📤 **Uploading your Album...**")
         await client.send_media_group(chat_id=user_id, media=media_group_to_send)
         
         selected_caption, selected_pinned = random.choice(CAPTIONS_SET)
-        await original_message.reply_text(f"📝 **1-TAP COPY CAPTION FOR ALBUM:**\n`{selected_caption}`")
-        await original_message.reply_text(f"💬 **1-TAP COPY PINNED COMMENT:**\n`{selected_pinned}`")
-        
+        await original_message.reply_text(f"📝 **CAPTION:**\n`{selected_caption}`")
         await safe_delete(status_msg)
 
     except Exception as e:
-        await original_message.reply_text(f"❌ **Album Error:** {str(e)}")
-    
+        await safe_edit(status_msg, f"❌ Error: {str(e)}")
     finally:
         for p in processed_files:
             if os.path.exists(p): os.remove(p)
@@ -208,13 +182,16 @@ def fetch_insta_post(url, download_folder):
         'quiet': True,
         'no_warnings': True,
         'ignoreerrors': True,
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9',
+        }
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
         if not info:
             return ""
-        caption = info.get('description') or info.get('title') or ""
-        return caption
+        return info.get('description') or info.get('title') or ""
 
 @app.on_message(filters.text & ~filters.command(["start", "menu"]))
 async def handle_text_messages(client, message):
@@ -222,89 +199,80 @@ async def handle_text_messages(client, message):
     text = message.text.strip()
 
     if text in ["📸 Image Stealth Wash", "🎥 Video Stealth Wash", "🔕 Mute & Wash Video", 
-                "📺 YouTube Stealth Wash", "📺 YouTube Stealth Wash (20+ Min)", 
-                "🔗 Insta Link Stealth Wash", "✅ Yes, Add Watermark", "❌ No Watermark"]:
+                "📺 YouTube Stealth Wash", "🔗 Insta Link Stealth Wash", 
+                "✅ Yes, Add Watermark", "❌ No Watermark"]:
         return
 
-    if user_id not in user_modes or user_modes[user_id] != "🔗 Insta Link Stealth Wash":
-        await message.reply_text("⚠️ Please select `🔗 Insta Link Stealth Wash` mode from the menu first!")
-        return
-    if user_id not in user_watermarks:
-        await message.reply_text("⚠️ Please select Watermark Yes/No from the /start menu first!")
-        return
+    # Auto-Detect Instagram Links
+    if "instagram.com" in text or "instagr.am" in text:
+        user_modes[user_id] = "🔗 Insta Link Stealth Wash"
+        user_watermarks.setdefault(user_id, True)
 
-    if not ("instagram.com" in text or "instagr.am" in text or text.startswith("http")):
-        await message.reply_text("⚠️ Please send a valid Instagram Post / Reel / Carousel link!")
-        return
+        urls = re.findall(r'https?://[^\s]+', text)
+        url = urls[0] if urls else text
+        apply_wm = user_watermarks[user_id]
 
-    urls = re.findall(r'https?://[^\s]+', text)
-    url = urls[0] if urls else text
+        status_msg = await message.reply_text("📥 Fetching Instagram Post/Reel...")
+        task_dir = os.path.join(DOWNLOAD_DIR, f"insta_{user_id}_{random.randint(1000,9999)}")
+        os.makedirs(task_dir, exist_ok=True)
 
-    apply_wm = user_watermarks[user_id]
-    status_msg = await message.reply_text("📥 **Fetching Instagram Media & Slides...**")
-    task_dir = os.path.join(DOWNLOAD_DIR, f"insta_{user_id}_{random.randint(1000,9999)}")
-    os.makedirs(task_dir, exist_ok=True)
+        try:
+            caption = await asyncio.to_thread(fetch_insta_post, url, task_dir)
+            downloaded_files = sorted([os.path.join(task_dir, f) for f in os.listdir(task_dir) if os.path.isfile(os.path.join(task_dir, f))])
 
-    try:
-        caption = await asyncio.to_thread(fetch_insta_post, url, task_dir)
-        downloaded_files = sorted([os.path.join(task_dir, f) for f in os.listdir(task_dir) if os.path.isfile(os.path.join(task_dir, f))])
+            if not downloaded_files:
+                await safe_edit(status_msg, "❌ Could not extract media. Ensure post is public or try again.")
+                return
 
-        if not downloaded_files:
-            await safe_edit(status_msg, "❌ **Error:** No media could be extracted. Make sure the link is from a public post/reel!")
-            return
+            await safe_edit(status_msg, f"🔄 Processing {len(downloaded_files)} file(s)...")
 
-        await safe_edit(status_msg, f"🔄 **Executing Stealth Wash on {len(downloaded_files)} slide(s)...**")
+            processed_files = []
+            media_group_to_send = []
 
-        processed_files = []
-        media_group_to_send = []
+            for fpath in downloaded_files:
+                out_path = await process_single_file(client, fpath, user_id, "🔗 Insta Link Stealth Wash", apply_wm)
+                processed_files.append(out_path)
+                
+                ext = out_path.split(".")[-1].lower()
+                if ext in ['jpg', 'jpeg', 'png', 'webp']:
+                    media_group_to_send.append(InputMediaPhoto(media=out_path))
+                else:
+                    media_group_to_send.append(InputMediaVideo(media=out_path))
 
-        for fpath in downloaded_files:
-            out_path = await process_single_file(client, fpath, user_id, "🔗 Insta Link Stealth Wash", apply_wm)
-            processed_files.append(out_path)
-            
-            ext = out_path.split(".")[-1].lower()
-            if ext in ['jpg', 'jpeg', 'png', 'webp']:
-                media_group_to_send.append(InputMediaPhoto(media=out_path))
+            if len(media_group_to_send) == 1:
+                item = media_group_to_send[0]
+                if isinstance(item, InputMediaPhoto):
+                    await message.reply_photo(photo=item.media)
+                else:
+                    await message.reply_video(video=item.media, supports_streaming=True)
             else:
-                media_group_to_send.append(InputMediaVideo(media=out_path))
+                await client.send_media_group(chat_id=user_id, media=media_group_to_send)
 
-        await safe_edit(status_msg, "📤 **Uploading washed Instagram Album...**")
+            await safe_delete(status_msg)
 
-        if len(media_group_to_send) == 1:
-            item = media_group_to_send[0]
-            if isinstance(item, InputMediaPhoto):
-                await message.reply_photo(photo=item.media)
-            else:
-                await message.reply_video(video=item.media, supports_streaming=True)
-        else:
-            await client.send_media_group(chat_id=user_id, media=media_group_to_send)
+            final_caption = f"{caption}\n\n{HASHTAGS}" if caption else HASHTAGS
+            await message.reply_text(f"📝 **CAPTION:**\n`{final_caption}`")
 
-        await safe_delete(status_msg)
+        except Exception as e:
+            await safe_edit(status_msg, f"❌ Error: {str(e)}")
 
-        final_caption = f"{caption}\n\n{HASHTAGS}" if caption else HASHTAGS
-        await message.reply_text(f"📝 **1-TAP COPY CAPTION FOR INSTAGRAM:**\n`{final_caption}`")
-
-    except Exception as e:
-        await safe_edit(status_msg, f"❌ **Insta Link Error:** {str(e)}")
-
-    finally:
-        if os.path.exists(task_dir):
-            for f in os.listdir(task_dir):
-                try: os.remove(os.path.join(task_dir, f))
+        finally:
+            if os.path.exists(task_dir):
+                for f in os.listdir(task_dir):
+                    try: os.remove(os.path.join(task_dir, f))
+                    except Exception: pass
+                try: os.rmdir(task_dir)
                 except Exception: pass
-            try: os.rmdir(task_dir)
-            except Exception: pass
 
 @app.on_message(filters.photo | filters.video | filters.document)
 async def handle_media(client, message):
     user_id = message.from_user.id
     
+    # Auto-Defaults to prevent error spam
     if user_id not in user_modes:
-        await message.reply_text("⚠️ Please select a mode from the menu first!")
-        return
+        user_modes[user_id] = "📸 Image Stealth Wash" if message.photo else "🎥 Video Stealth Wash"
     if user_id not in user_watermarks:
-        await message.reply_text("⚠️ Please select Watermark Yes/No from the /start menu first!")
-        return
+        user_watermarks[user_id] = True
 
     mode = user_modes[user_id]
     apply_wm = user_watermarks[user_id]
@@ -317,33 +285,26 @@ async def handle_media(client, message):
         media_group_cache[mg_id].append(message)
         return
 
-    processing_msg = None
-    try:
-        processing_msg = await message.reply_text("📥 **Downloading single asset...**")
-    except Exception:
-        pass
+    status_msg = await message.reply_text("🔄 Processing media...")
 
     try:
-        await safe_edit(processing_msg, "🔄 **Executing Advanced AI Stealth Bypass...**")
         processed_path = await process_single_file(client, message, user_id, mode, apply_wm)
-        await safe_edit(processing_msg, "📤 **Uploading washed asset...**")
 
         if mode == "📸 Image Stealth Wash":
             await message.reply_photo(photo=processed_path)
         else:
             await message.reply_video(video=processed_path, supports_streaming=True)
 
-        await safe_delete(processing_msg)
+        await safe_delete(status_msg)
 
         selected_caption, selected_pinned = random.choice(CAPTIONS_SET)
-        await message.reply_text(f"📝 **1-TAP COPY CAPTION:**\n`{selected_caption}`")
-        await message.reply_text(f"💬 **1-TAP COPY PINNED COMMENT:**\n`{selected_pinned}`")
+        await message.reply_text(f"📝 **CAPTION:**\n`{selected_caption}`")
 
         if os.path.exists(processed_path): os.remove(processed_path)
 
     except Exception as e:
-        await message.reply_text(f"❌ **Error:** {str(e)}")
+        await safe_edit(status_msg, f"❌ Error: {str(e)}")
 
 if __name__ == "__main__":
-    print("🚀 Ultimate Stealth Pipeline Active...")
+    print("🚀 Clean Ghost Operator Active...")
     app.run()
