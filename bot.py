@@ -5,7 +5,6 @@ import asyncio
 import sys
 import subprocess
 import urllib.request
-from pathlib import Path
 
 # ==========================================
 # 🛡️ AUTO-INSTALL MISSING MODULES
@@ -46,7 +45,7 @@ def ensure_font():
             urllib.request.urlretrieve(FONT_URL, FONT_FILE)
             print(f"✅ Font ready: {FONT_FILE}")
         except Exception as e:
-            print(f"⚠️ Font download failed: {e}. Falling back to system fonts if available.")
+            print(f"⚠️ Font download failed: {e}")
     else:
         print(f"✅ Font already present: {FONT_FILE}")
 
@@ -124,24 +123,16 @@ async def set_mode(client, message):
     await message.reply_text(f"✅ Mode: `{message.text}`", reply_markup=get_main_menu())
 
 def build_delogo_filters():
-    """
-    Localized masking / delogo on common watermark regions
-    (top-left, top-right, bottom-left, bottom-right, bottom-center).
-    Coordinates are relative and work for most vertical/horizontal media.
-    show=0 makes the filter invisible (no green box).
-    """
-    # Approximate common logo areas. These are safe defaults.
     filters = [
-        "delogo=x=10:y=10:w=180:h=60:show=0",                          # top-left
-        "delogo=x=w-190:y=10:w=180:h=60:show=0",                        # top-right
-        "delogo=x=10:y=h-70:w=180:h=60:show=0",                         # bottom-left
-        "delogo=x=w-190:y=h-70:w=180:h=60:show=0",                       # bottom-right
-        "delogo=x=(w-220)/2:y=h-80:w=220:h=70:show=0",                  # bottom-center
+        "delogo=x=10:y=10:w=180:h=60:show=0",
+        "delogo=x=w-190:y=10:w=180:h=60:show=0",
+        "delogo=x=10:y=h-70:w=180:h=60:show=0",
+        "delogo=x=w-190:y=h-70:w=180:h=60:show=0",
+        "delogo=x=(w-220)/2:y=h-80:w=220:h=70:show=0",
     ]
     return ",".join(filters)
 
 def get_watermark_text(mode: str) -> str:
-    """Return clean ASCII watermark text based on mode."""
     if "YouTube" in mode:
         return "Professionals Group"
     elif "Insta" in mode:
@@ -156,18 +147,12 @@ async def process_single_file(client, message_or_path, user_id, mode, apply_wm):
         file_path = await message_or_path.download(file_name=os.path.join(DOWNLOAD_DIR, ""))
 
     ext = file_path.split(".")[-1].lower()
-    processed_path = os.path.join(
-        PROCESSED_DIR,
-        f"clean_{user_id}_{random.randint(10000, 99999)}.{ext}"
-    )
+    processed_path = os.path.join(PROCESSED_DIR, f"clean_{user_id}_{random.randint(10000, 99999)}.{ext}")
 
-    # Build base video filter chain
     delogo = build_delogo_filters()
     font_param = f"fontfile='{FONT_FILE}'" if os.path.exists(FONT_FILE) else ""
 
-    # Core stealth wash (anti-fingerprint)
     if mode == "📸 Image Stealth Wash" or (ext in ["jpg", "jpeg", "png", "webp"] and "Insta" in mode):
-        # Image pipeline
         base_vf = (
             f"{delogo},"
             "crop=iw*0.98:ih*0.98,"
@@ -192,9 +177,7 @@ async def process_single_file(client, message_or_path, user_id, mode, apply_wm):
             "-q:v", "2",
             processed_path
         ]
-
     else:
-        # Video pipeline (all other modes)
         speed = 1.05
         if "YouTube" in mode:
             speed = 1.04
@@ -241,7 +224,6 @@ async def process_single_file(client, message_or_path, user_id, mode, apply_wm):
         if mode == "🔕 Mute & Wash Video":
             cmd.extend(["-an"])
         else:
-            # Audio tempo + slight pitch shift for fingerprint resistance
             audio_filter = f"atempo={speed}"
             if "YouTube" in mode:
                 audio_filter = f"atempo={speed},asetrate=44100*1.01"
@@ -255,7 +237,6 @@ async def process_single_file(client, message_or_path, user_id, mode, apply_wm):
             processed_path
         ])
 
-    # Run FFmpeg
     process = await asyncio.create_subprocess_exec(
         *cmd,
         stdout=asyncio.subprocess.PIPE,
@@ -267,7 +248,6 @@ async def process_single_file(client, message_or_path, user_id, mode, apply_wm):
         err_msg = stderr.decode()[-500:] if stderr else "Unknown FFmpeg error"
         raise RuntimeError(f"FFmpeg failed: {err_msg}")
 
-    # Cleanup original download
     if os.path.exists(file_path) and file_path.startswith(DOWNLOAD_DIR):
         try:
             os.remove(file_path)
@@ -277,7 +257,7 @@ async def process_single_file(client, message_or_path, user_id, mode, apply_wm):
     return processed_path
 
 async def process_album_task(client, original_message, mg_id, user_id, mode, apply_wm):
-    await asyncio.sleep(3.5)  # Wait for all media group items
+    await asyncio.sleep(3.5)
     messages = media_group_cache.pop(mg_id, [])
     if not messages:
         return
@@ -298,7 +278,6 @@ async def process_album_task(client, original_message, mg_id, user_id, mode, app
 
         await client.send_media_group(chat_id=user_id, media=media_group_to_send)
 
-        # Only random promotional caption for non-Insta modes
         selected_caption, _ = random.choice(CAPTIONS_SET)
         await original_message.reply_text(f"📝 **CAPTION:**\n`{selected_caption}`")
         await safe_delete(status_msg)
@@ -314,10 +293,6 @@ async def process_album_task(client, original_message, mg_id, user_id, mode, app
                     pass
 
 def fetch_insta_post(url, download_folder):
-    """
-    Robust Instagram extraction for single posts, reels, and carousels.
-    Uses modern headers + best quality + full extraction.
-    """
     ydl_opts = {
         "outtmpl": os.path.join(download_folder, "%(id)s_%(autonumber)02d.%(ext)s"),
         "quiet": True,
@@ -344,17 +319,12 @@ def fetch_insta_post(url, download_folder):
             "Sec-Fetch-User": "?1",
             "Upgrade-Insecure-Requests": "1",
         },
-        # Instagram-specific improvements
-        "cookiefile": None,
-        "noplaylist": False,
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
         if not info:
             return ""
-
-        # Prefer full description, fallback to title
         caption = info.get("description") or info.get("title") or ""
         return caption.strip()
 
@@ -363,7 +333,6 @@ async def handle_text_messages(client, message):
     user_id = message.from_user.id
     text = message.text.strip()
 
-    # Ignore pure menu button presses
     if text in [
         "📸 Image Stealth Wash", "🎥 Video Stealth Wash", "🔕 Mute & Wash Video",
         "📺 YouTube Stealth Wash", "🔗 Insta Link Stealth Wash",
@@ -371,7 +340,6 @@ async def handle_text_messages(client, message):
     ]:
         return
 
-    # Auto-Detect Instagram Links
     if "instagram.com" in text or "instagr.am" in text:
         user_modes[user_id] = "🔗 Insta Link Stealth Wash"
         user_watermarks.setdefault(user_id, True)
@@ -384,6 +352,7 @@ async def handle_text_messages(client, message):
         task_dir = os.path.join(DOWNLOAD_DIR, f"insta_{user_id}_{random.randint(1000, 9999)}")
         os.makedirs(task_dir, exist_ok=True)
 
+        processed_files = []
         try:
             caption = await asyncio.to_thread(fetch_insta_post, url, task_dir)
             downloaded_files = sorted([
@@ -399,7 +368,6 @@ async def handle_text_messages(client, message):
 
             await safe_edit(status_msg, f"🔄 Processing {len(downloaded_files)} file(s) with full stealth wash...")
 
-            processed_files = []
             media_group_to_send = []
 
             for fpath in downloaded_files:
@@ -416,7 +384,6 @@ async def handle_text_messages(client, message):
                         InputMediaVideo(media=out_path, supports_streaming=True)
                     )
 
-            # Deliver as album or single item
             if len(media_group_to_send) == 1:
                 item = media_group_to_send[0]
                 if isinstance(item, InputMediaPhoto):
@@ -428,14 +395,12 @@ async def handle_text_messages(client, message):
 
             await safe_delete(status_msg)
 
-            # Exact original caption + hashtags (Option 5 requirement)
             final_caption = f"{caption}\n\n{HASHTAGS}" if caption else HASHTAGS
             await message.reply_text(f"📝 **CAPTION:**\n`{final_caption}`")
 
         except Exception as e:
             await safe_edit(status_msg, f"❌ Error: {str(e)[:350]}")
         finally:
-            # Cleanup task directory
             if os.path.exists(task_dir):
                 for f in os.listdir(task_dir):
                     try:
@@ -446,18 +411,17 @@ async def handle_text_messages(client, message):
                     os.rmdir(task_dir)
                 except Exception:
                     pass
-                for p in processed_files if "processed_files" in locals() else []:
-                    if os.path.exists(p):
-                        try:
-                            os.remove(p)
-                        except Exception:
-                            pass
+            for p in processed_files:
+                if os.path.exists(p):
+                    try:
+                        os.remove(p)
+                    except Exception:
+                        pass
 
 @app.on_message(filters.photo | filters.video | filters.document)
 async def handle_media(client, message):
     user_id = message.from_user.id
 
-    # Safe defaults – never spam user
     if user_id not in user_modes:
         user_modes[user_id] = "📸 Image Stealth Wash" if message.photo else "🎥 Video Stealth Wash"
     if user_id not in user_watermarks:
@@ -466,7 +430,6 @@ async def handle_media(client, message):
     mode = user_modes[user_id]
     apply_wm = user_watermarks[user_id]
 
-    # Media group (album) handling
     if message.media_group_id:
         mg_id = message.media_group_id
         if mg_id not in media_group_cache:
@@ -482,9 +445,7 @@ async def handle_media(client, message):
     try:
         processed_path = await process_single_file(client, message, user_id, mode, apply_wm)
 
-        if mode == "📸 Image Stealth Wash" or (
-            processed_path.lower().endswith((".jpg", ".jpeg", ".png", ".webp"))
-        ):
+        if mode == "📸 Image Stealth Wash" or processed_path.lower().endswith((".jpg", ".jpeg", ".png", ".webp")):
             await message.reply_photo(photo=processed_path)
         else:
             await message.reply_video(video=processed_path, supports_streaming=True)
