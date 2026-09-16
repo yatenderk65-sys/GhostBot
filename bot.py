@@ -5,53 +5,60 @@ import asyncio
 import sys
 import subprocess
 import urllib.request
+from pathlib import Path
 
 # ==========================================
-# 🛡️ AUTO-INSTALL MISSING MODULES & FONTS
+# 🛡️ AUTO-INSTALL MISSING MODULES
 # ==========================================
 try:
     import yt_dlp
 except ImportError:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "-U", "yt-dlp"])
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "yt-dlp"])
     import yt_dlp
 
 from pyrogram import Client, filters
 from pyrogram.types import ReplyKeyboardMarkup, KeyboardButton, InputMediaPhoto, InputMediaVideo
 
-FONT_PATH = "font.ttf"
-
-def ensure_font():
-    """Downloads a standard fallback TTF font to fix FFmpeg box artifacts on minimal Linux systems."""
-    if not os.path.exists(FONT_PATH):
-        try:
-            url = "https://raw.githubusercontent.com/google/fonts/main/ofl/roboto/Roboto-Regular.ttf"
-            urllib.request.urlretrieve(url, FONT_PATH)
-            print("✅ Default TTF font downloaded successfully.")
-        except Exception as e:
-            print(f"⚠️ Warning: Failed to download font: {e}")
-
-ensure_font()
-
 # ==========================================
-# 🛑 CONFIGURATION
+# 🛑 PASTE YOUR BOT TOKEN BELOW
 # ==========================================
-API_ID = 36511364  
-API_HASH = "249685fabdef6018e8c84dec25942b91"  
-BOT_TOKEN = "8608879552:AAHwDrvWXsBSR2H7E8B-E4gPVOie-052urw"  # Replace with active Bot Token
+API_ID = 36511364
+API_HASH = "249685fabdef6018e8c84dec25942b91"
+BOT_TOKEN = "8608879552:AAHwDrvWXsBSR2H7E8B-E4gPVOie-052urw"  # <-- Naya token yahan!
 
 app = Client("ghost_session", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
 DOWNLOAD_DIR = "downloads"
 PROCESSED_DIR = "processed"
+FONT_FILE = "DejaVuSans.ttf"
+FONT_URL = "https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37/ttf/DejaVuSans.ttf"
+
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 os.makedirs(PROCESSED_DIR, exist_ok=True)
 
-# State Storage
+# ==========================================
+# 🔤 AUTO-DOWNLOAD TRUETYPE FONT (Fix □□□)
+# ==========================================
+def ensure_font():
+    if not os.path.exists(FONT_FILE):
+        print(f"⬇️ Downloading font: {FONT_FILE} ...")
+        try:
+            urllib.request.urlretrieve(FONT_URL, FONT_FILE)
+            print(f"✅ Font ready: {FONT_FILE}")
+        except Exception as e:
+            print(f"⚠️ Font download failed: {e}. Falling back to system fonts if available.")
+    else:
+        print(f"✅ Font already present: {FONT_FILE}")
+
+ensure_font()
+
+# Memory Dictionaries
 user_modes = {}
 user_watermarks = {}
 media_group_cache = {}
 
 HASHTAGS = "\n\n#viralreels #explorepage #trendingaudio #fashionlookbook #modelaesthetic #4kcontent #foryoupage #outfitinspiration"
+
 CAPTIONS_SET = [
     (
         "POV: You couldn't scroll past this look. 🙈 Rate this look 1 to 10 in the comments! 🖤\n\n"
@@ -62,24 +69,25 @@ CAPTIONS_SET = [
     )
 ]
 
-# ==========================================
-# 🎯 HELPER FUNCTIONS
-# ==========================================
 async def safe_edit(msg, text):
-    if not msg: return
-    try: await msg.edit_text(text)
-    except Exception: pass
+    if not msg:
+        return
+    try:
+        await msg.edit_text(text)
+    except Exception:
+        pass
 
 async def safe_delete(msg):
-    if not msg: return
-    try: await msg.delete()
-    except Exception: pass
+    if not msg:
+        return
+    try:
+        await msg.delete()
+    except Exception:
+        pass
 
 def get_watermark_menu():
     return ReplyKeyboardMarkup(
-        [
-            [KeyboardButton("✅ Yes, Add Watermark"), KeyboardButton("❌ No Watermark")]
-        ],
+        [[KeyboardButton("✅ Yes, Add Watermark"), KeyboardButton("❌ No Watermark")]],
         resize_keyboard=True
     )
 
@@ -93,106 +101,188 @@ def get_main_menu():
         resize_keyboard=True
     )
 
-def build_drawtext_filter(text):
-    font_param = f"fontfile='{FONT_PATH}':" if os.path.exists(FONT_PATH) else ""
-    return f"drawtext={font_param}text='{text}':x=(w-text_w)/2:y=h-th-40:fontsize=45:fontcolor=white@0.85:shadowcolor=black@0.6:shadowx=2:shadowy=2"
-
-# ==========================================
-# 🤖 COMMAND & MENU HANDLERS
-# ==========================================
 @app.on_message(filters.command(["start", "menu"]))
 async def start_cmd(client, message):
-    user_id = message.from_user.id
-    user_watermarks.setdefault(user_id, True)
-    
     await message.reply_text(
-        "🤖 **GHOST OPERATOR ACTIVE (V5.0 CLEAN)**\n"
+        "🤖 **GHOST OPERATOR ACTIVE (V6.0 PRODUCTION)**\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n"
-        "Step 1: Choose Watermark Setting below.\n"
-        "Step 2: Select a Stealth Wash mode or send media/Instagram link directly!",
-        reply_markup=get_watermark_menu()
+        "Send any media or Instagram link directly!\n"
+        "All media is auto-stealth-washed + re-branded.",
+        reply_markup=get_main_menu()
     )
 
 @app.on_message(filters.regex(r"^(✅ Yes, Add Watermark|❌ No Watermark)$"))
 async def set_watermark(client, message):
     user_id = message.from_user.id
-    user_watermarks[user_id] = "Yes" in message.text
+    user_watermarks[user_id] = True if "Yes" in message.text else False
     status = "ON 🟢" if user_watermarks[user_id] else "OFF 🔴"
-    
-    await message.reply_text(
-        f"💧 **Watermark Status:** {status}\n\nSelect a processing mode:",
-        reply_markup=get_main_menu()
-    )
+    await message.reply_text(f"💧 **Watermark:** {status}", reply_markup=get_main_menu())
 
 @app.on_message(filters.regex(r"^(📸 Image Stealth Wash|🎥 Video Stealth Wash|🔕 Mute & Wash Video|📺 YouTube Stealth Wash.*|🔗 Insta Link Stealth Wash)$"))
 async def set_mode(client, message):
     user_modes[message.from_user.id] = message.text
-    await message.reply_text(f"✅ Mode set to: `{message.text}`", reply_markup=get_main_menu())
+    await message.reply_text(f"✅ Mode: `{message.text}`", reply_markup=get_main_menu())
 
-# ==========================================
-# ⚙️ FFMPEG STEALTH ENGINE
-# ==========================================
+def build_delogo_filters():
+    """
+    Localized masking / delogo on common watermark regions
+    (top-left, top-right, bottom-left, bottom-right, bottom-center).
+    Coordinates are relative and work for most vertical/horizontal media.
+    show=0 makes the filter invisible (no green box).
+    """
+    # Approximate common logo areas. These are safe defaults.
+    filters = [
+        "delogo=x=10:y=10:w=180:h=60:show=0",                          # top-left
+        "delogo=x=w-190:y=10:w=180:h=60:show=0",                        # top-right
+        "delogo=x=10:y=h-70:w=180:h=60:show=0",                         # bottom-left
+        "delogo=x=w-190:y=h-70:w=180:h=60:show=0",                       # bottom-right
+        "delogo=x=(w-220)/2:y=h-80:w=220:h=70:show=0",                  # bottom-center
+    ]
+    return ",".join(filters)
+
+def get_watermark_text(mode: str) -> str:
+    """Return clean ASCII watermark text based on mode."""
+    if "YouTube" in mode:
+        return "Professionals Group"
+    elif "Insta" in mode:
+        return "Trusted FF Marketplace"
+    else:
+        return "Alishya Oberoi"
+
 async def process_single_file(client, message_or_path, user_id, mode, apply_wm):
     if isinstance(message_or_path, str):
         file_path = message_or_path
     else:
-        file_path = await message_or_path.download(file_name=os.path.join(DOWNLOAD_DIR, f"{user_id}_{random.randint(1000,9999)}"))
-        
+        file_path = await message_or_path.download(file_name=os.path.join(DOWNLOAD_DIR, ""))
+
     ext = file_path.split(".")[-1].lower()
-    processed_path = os.path.join(PROCESSED_DIR, f"clean_{user_id}_{random.randint(1000,99999)}.{ext}")
+    processed_path = os.path.join(
+        PROCESSED_DIR,
+        f"clean_{user_id}_{random.randint(10000, 99999)}.{ext}"
+    )
 
-    # Standard ASCII Watermark text definitions (fixes glyph rendering issues)
-    if "YouTube" in mode:
-        wm_filter = build_drawtext_filter("Professionals Group")
-    elif mode == "🔗 Insta Link Stealth Wash":
-        wm_filter = build_drawtext_filter("Trusted FF Marketplace")
+    # Build base video filter chain
+    delogo = build_delogo_filters()
+    font_param = f"fontfile='{FONT_FILE}'" if os.path.exists(FONT_FILE) else ""
+
+    # Core stealth wash (anti-fingerprint)
+    if mode == "📸 Image Stealth Wash" or (ext in ["jpg", "jpeg", "png", "webp"] and "Insta" in mode):
+        # Image pipeline
+        base_vf = (
+            f"{delogo},"
+            "crop=iw*0.98:ih*0.98,"
+            "scale=iw:ih,"
+            "eq=contrast=1.02:brightness=0.01,"
+            "noise=alls=1:allf=t+u"
+        )
+        if apply_wm:
+            wm_text = get_watermark_text(mode)
+            base_vf += (
+                f",drawtext=text='{wm_text}':"
+                f"{font_param}:"
+                "x=(w-text_w)/2:y=h-th-40:"
+                "fontsize=42:fontcolor=white@0.88:"
+                "shadowcolor=black@0.65:shadowx=2:shadowy=2:"
+                "borderw=1:bordercolor=black@0.3"
+            )
+        cmd = [
+            "ffmpeg", "-y", "-i", file_path,
+            "-map_metadata", "-1",
+            "-vf", base_vf,
+            "-q:v", "2",
+            processed_path
+        ]
+
     else:
-        wm_filter = build_drawtext_filter("Alishya Oberoi")
+        # Video pipeline (all other modes)
+        speed = 1.05
+        if "YouTube" in mode:
+            speed = 1.04
+            contrast = "1.05"
+            brightness = "0.02"
+            saturation = "1.07"
+            crop_factor = "0.95"
+            crf = "20"
+            preset = "medium"
+        else:
+            contrast = "1.03"
+            brightness = "0.01"
+            saturation = "1.0"
+            crop_factor = "0.98"
+            crf = "18"
+            preset = "fast"
 
-    cmd = ['ffmpeg', '-y', '-i', file_path, '-map_metadata', '-1']
+        base_vf = (
+            f"{delogo},"
+            f"crop=iw*{crop_factor}:ih*{crop_factor},"
+            "scale=iw:ih,"
+            f"eq=contrast={contrast}:brightness={brightness}:saturation={saturation},"
+            "noise=alls=1:allf=t+u,"
+            f"setpts=1/{speed}*PTS"
+        )
 
-    is_image = ext in ['jpg', 'jpeg', 'png', 'webp']
+        if apply_wm:
+            wm_text = get_watermark_text(mode)
+            base_vf += (
+                f",drawtext=text='{wm_text}':"
+                f"{font_param}:"
+                "x=(w-text_w)/2:y=h-th-45:"
+                "fontsize=48:fontcolor=white@0.90:"
+                "shadowcolor=black@0.7:shadowx=3:shadowy=3:"
+                "borderw=1:bordercolor=white@0.25"
+            )
 
-    if mode == "📸 Image Stealth Wash" or (is_image and mode != "🎥 Video Stealth Wash" and mode != "🔕 Mute & Wash Video"):
-        vf = "crop=iw*0.98:ih*0.98,scale=iw:ih,eq=contrast=1.02:brightness=0.01,noise=alls=1:allf=t+u"
-        if apply_wm: vf += f",{wm_filter}"
-        cmd.extend(['-vf', vf, '-q:v', '2', processed_path])
+        cmd = [
+            "ffmpeg", "-y", "-i", file_path,
+            "-map_metadata", "-1",
+            "-vf", base_vf,
+        ]
 
-    elif mode == "🎥 Video Stealth Wash":
-        vf = "crop=iw*0.98:ih*0.98,scale=iw:ih,eq=contrast=1.03:brightness=0.01,noise=alls=1:allf=t+u,setpts=1/1.05*PTS"
-        if apply_wm: vf += f",{wm_filter}"
-        cmd.extend(['-vf', vf, '-af', 'atempo=1.05', '-c:v', 'libx264', '-crf', '18', '-preset', 'fast', '-c:a', 'aac', processed_path])
+        if mode == "🔕 Mute & Wash Video":
+            cmd.extend(["-an"])
+        else:
+            # Audio tempo + slight pitch shift for fingerprint resistance
+            audio_filter = f"atempo={speed}"
+            if "YouTube" in mode:
+                audio_filter = f"atempo={speed},asetrate=44100*1.01"
+            cmd.extend(["-af", audio_filter, "-c:a", "aac"])
 
-    elif mode == "🔕 Mute & Wash Video":
-        vf = "crop=iw*0.98:ih*0.98,scale=iw:ih,eq=contrast=1.03:brightness=0.01,noise=alls=1:allf=t+u,setpts=1/1.05*PTS"
-        if apply_wm: vf += f",{wm_filter}"
-        cmd.extend(['-vf', vf, '-an', '-c:v', 'libx264', '-crf', '18', '-preset', 'fast', processed_path])
+        cmd.extend([
+            "-c:v", "libx264",
+            "-crf", crf,
+            "-preset", preset,
+            "-movflags", "+faststart",
+            processed_path
+        ])
 
-    elif "YouTube Stealth Wash" in mode:
-        vf = "crop=iw*0.95:ih*0.95,scale=iw:ih,eq=contrast=1.05:brightness=0.02:saturation=1.07,noise=alls=1:allf=t+u,setpts=1/1.04*PTS"
-        if apply_wm: vf += f",{wm_filter}"
-        cmd.extend(['-vf', vf, '-af', 'atempo=1.04,asetrate=44100*1.01', '-c:v', 'libx264', '-crf', '20', '-preset', 'medium', '-c:a', 'aac', processed_path])
+    # Run FFmpeg
+    process = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    stdout, stderr = await process.communicate()
 
-    else:
-        vf = "crop=iw*0.98:ih*0.98,scale=iw:ih,eq=contrast=1.03:brightness=0.01,noise=alls=1:allf=t+u,setpts=1/1.05*PTS"
-        if apply_wm: vf += f",{wm_filter}"
-        cmd.extend(['-vf', vf, '-af', 'atempo=1.05', '-c:v', 'libx264', '-crf', '18', '-preset', 'fast', '-c:a', 'aac', processed_path])
+    if process.returncode != 0:
+        err_msg = stderr.decode()[-500:] if stderr else "Unknown FFmpeg error"
+        raise RuntimeError(f"FFmpeg failed: {err_msg}")
 
-    process = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-    await process.communicate()
-    
-    if os.path.exists(file_path): os.remove(file_path)
+    # Cleanup original download
+    if os.path.exists(file_path) and file_path.startswith(DOWNLOAD_DIR):
+        try:
+            os.remove(file_path)
+        except Exception:
+            pass
+
     return processed_path
 
-# ==========================================
-# 📦 TELEGRAM ALBUM PROCESSOR
-# ==========================================
 async def process_album_task(client, original_message, mg_id, user_id, mode, apply_wm):
-    await asyncio.sleep(3)
+    await asyncio.sleep(3.5)  # Wait for all media group items
     messages = media_group_cache.pop(mg_id, [])
-    if not messages: return
+    if not messages:
+        return
 
-    status_msg = await original_message.reply_text(f"⏳ Processing Album ({len(messages)} items)...")
+    status_msg = await original_message.reply_text(f"⏳ Processing Album ({len(messages)} files)...")
     processed_files = []
     media_group_to_send = []
 
@@ -201,66 +291,82 @@ async def process_album_task(client, original_message, mg_id, user_id, mode, app
             out_path = await process_single_file(client, msg, user_id, mode, apply_wm)
             processed_files.append(out_path)
             ext = out_path.split(".")[-1].lower()
-            if ext in ['jpg', 'jpeg', 'png', 'webp']:
+            if ext in ["jpg", "jpeg", "png", "webp"]:
                 media_group_to_send.append(InputMediaPhoto(media=out_path))
             else:
-                media_group_to_send.append(InputMediaVideo(media=out_path))
+                media_group_to_send.append(InputMediaVideo(media=out_path, supports_streaming=True))
 
-        # Send in chunks of 10 if necessary
-        for i in range(0, len(media_group_to_send), 10):
-            await client.send_media_group(chat_id=user_id, media=media_group_to_send[i:i+10])
-        
+        await client.send_media_group(chat_id=user_id, media=media_group_to_send)
+
+        # Only random promotional caption for non-Insta modes
         selected_caption, _ = random.choice(CAPTIONS_SET)
         await original_message.reply_text(f"📝 **CAPTION:**\n`{selected_caption}`")
         await safe_delete(status_msg)
 
     except Exception as e:
-        await safe_edit(status_msg, f"❌ Album Processing Error: {str(e)}")
+        await safe_edit(status_msg, f"❌ Error: {str(e)[:300]}")
     finally:
         for p in processed_files:
-            if os.path.exists(p): os.remove(p)
+            if os.path.exists(p):
+                try:
+                    os.remove(p)
+                except Exception:
+                    pass
 
-# ==========================================
-# 📸 INSTAGRAM EXTRACTION ENGINE
-# ==========================================
 def fetch_insta_post(url, download_folder):
+    """
+    Robust Instagram extraction for single posts, reels, and carousels.
+    Uses modern headers + best quality + full extraction.
+    """
     ydl_opts = {
-        'outtmpl': os.path.join(download_folder, '%(id)s_%(autonumber)02d.%(ext)s'),
-        'format': 'best',
-        'quiet': True,
-        'no_warnings': True,
-        'ignoreerrors': True,
-        'extract_flat': False,
-        'allow_playlist': True,
-        'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-            'Accept-Language': 'en-US,en;q=0.9',
-        }
+        "outtmpl": os.path.join(download_folder, "%(id)s_%(autonumber)02d.%(ext)s"),
+        "quiet": True,
+        "no_warnings": True,
+        "ignoreerrors": True,
+        "extract_flat": False,
+        "format": "best",
+        "http_headers": {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/122.0.0.0 Safari/537.36"
+            ),
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Referer": "https://www.instagram.com/",
+            "Origin": "https://www.instagram.com",
+            "DNT": "1",
+            "Connection": "keep-alive",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "same-origin",
+            "Sec-Fetch-User": "?1",
+            "Upgrade-Insecure-Requests": "1",
+        },
+        # Instagram-specific improvements
+        "cookiefile": None,
+        "noplaylist": False,
     }
-    caption = ""
+
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
-        if info:
-            if 'entries' in info and info['entries']:
-                for entry in info['entries']:
-                    if entry and (entry.get('description') or entry.get('title')):
-                        caption = entry.get('description') or entry.get('title')
-                        break
-            if not caption:
-                caption = info.get('description') or info.get('title') or ""
-    return caption
+        if not info:
+            return ""
 
-# ==========================================
-# 💬 MESSAGE HANDLERS
-# ==========================================
-@app.on_message(filters.text & ~filters.command(["start", "menu"]))
+        # Prefer full description, fallback to title
+        caption = info.get("description") or info.get("title") or ""
+        return caption.strip()
+
+@app.on_message(filters.text & \~filters.command(["start", "menu"]))
 async def handle_text_messages(client, message):
     user_id = message.from_user.id
     text = message.text.strip()
 
+    # Ignore pure menu button presses
     if text in [
-        "📸 Image Stealth Wash", "🎥 Video Stealth Wash", "🔕 Mute & Wash Video", 
-        "📺 YouTube Stealth Wash", "🔗 Insta Link Stealth Wash", 
+        "📸 Image Stealth Wash", "🎥 Video Stealth Wash", "🔕 Mute & Wash Video",
+        "📺 YouTube Stealth Wash", "🔗 Insta Link Stealth Wash",
         "✅ Yes, Add Watermark", "❌ No Watermark"
     ]:
         return
@@ -270,40 +376,47 @@ async def handle_text_messages(client, message):
         user_modes[user_id] = "🔗 Insta Link Stealth Wash"
         user_watermarks.setdefault(user_id, True)
 
-        urls = re.findall(r'https?://[^\s]+', text)
+        urls = re.findall(r"https?://[^\s]+", text)
         url = urls[0] if urls else text
-        apply_wm = user_watermarks[user_id]
+        apply_wm = user_watermarks.get(user_id, True)
 
-        status_msg = await message.reply_text("📥 Extracting Instagram media...")
-        task_dir = os.path.join(DOWNLOAD_DIR, f"insta_{user_id}_{random.randint(1000,9999)}")
+        status_msg = await message.reply_text("📥 Fetching Instagram Post / Reel / Carousel...")
+        task_dir = os.path.join(DOWNLOAD_DIR, f"insta_{user_id}_{random.randint(1000, 9999)}")
         os.makedirs(task_dir, exist_ok=True)
 
         try:
             caption = await asyncio.to_thread(fetch_insta_post, url, task_dir)
             downloaded_files = sorted([
-                os.path.join(task_dir, f) for f in os.listdir(task_dir) 
+                os.path.join(task_dir, f)
+                for f in os.listdir(task_dir)
                 if os.path.isfile(os.path.join(task_dir, f))
+                and not f.endswith((".json", ".description", ".info.json"))
             ])
 
             if not downloaded_files:
-                await safe_edit(status_msg, "❌ Could not extract media. Ensure post is public or try again.")
+                await safe_edit(status_msg, "❌ Could not extract media. Post may be private or restricted.")
                 return
 
-            await safe_edit(status_msg, f"🔄 Washing {len(downloaded_files)} extracted file(s)...")
+            await safe_edit(status_msg, f"🔄 Processing {len(downloaded_files)} file(s) with full stealth wash...")
 
             processed_files = []
             media_group_to_send = []
 
             for fpath in downloaded_files:
-                out_path = await process_single_file(client, fpath, user_id, "🔗 Insta Link Stealth Wash", apply_wm)
+                out_path = await process_single_file(
+                    client, fpath, user_id, "🔗 Insta Link Stealth Wash", apply_wm
+                )
                 processed_files.append(out_path)
-                
+
                 ext = out_path.split(".")[-1].lower()
-                if ext in ['jpg', 'jpeg', 'png', 'webp']:
+                if ext in ["jpg", "jpeg", "png", "webp"]:
                     media_group_to_send.append(InputMediaPhoto(media=out_path))
                 else:
-                    media_group_to_send.append(InputMediaVideo(media=out_path))
+                    media_group_to_send.append(
+                        InputMediaVideo(media=out_path, supports_streaming=True)
+                    )
 
+            # Deliver as album or single item
             if len(media_group_to_send) == 1:
                 item = media_group_to_send[0]
                 if isinstance(item, InputMediaPhoto):
@@ -311,30 +424,40 @@ async def handle_text_messages(client, message):
                 else:
                     await message.reply_video(video=item.media, supports_streaming=True)
             else:
-                for i in range(0, len(media_group_to_send), 10):
-                    await client.send_media_group(chat_id=user_id, media=media_group_to_send[i:i+10])
+                await client.send_media_group(chat_id=user_id, media=media_group_to_send)
 
             await safe_delete(status_msg)
 
-            # Preserves original extracted Instagram caption if present
-            final_caption = f"{caption.strip()}\n{HASHTAGS}" if caption else HASHTAGS.strip()
+            # Exact original caption + hashtags (Option 5 requirement)
+            final_caption = f"{caption}\n\n{HASHTAGS}" if caption else HASHTAGS
             await message.reply_text(f"📝 **CAPTION:**\n`{final_caption}`")
 
         except Exception as e:
-            await safe_edit(status_msg, f"❌ Processing Error: {str(e)}")
-
+            await safe_edit(status_msg, f"❌ Error: {str(e)[:350]}")
         finally:
+            # Cleanup task directory
             if os.path.exists(task_dir):
                 for f in os.listdir(task_dir):
-                    try: os.remove(os.path.join(task_dir, f))
-                    except Exception: pass
-                try: os.rmdir(task_dir)
-                except Exception: pass
+                    try:
+                        os.remove(os.path.join(task_dir, f))
+                    except Exception:
+                        pass
+                try:
+                    os.rmdir(task_dir)
+                except Exception:
+                    pass
+                for p in processed_files if "processed_files" in locals() else []:
+                    if os.path.exists(p):
+                        try:
+                            os.remove(p)
+                        except Exception:
+                            pass
 
 @app.on_message(filters.photo | filters.video | filters.document)
 async def handle_media(client, message):
     user_id = message.from_user.id
-    
+
+    # Safe defaults – never spam user
     if user_id not in user_modes:
         user_modes[user_id] = "📸 Image Stealth Wash" if message.photo else "🎥 Video Stealth Wash"
     if user_id not in user_watermarks:
@@ -343,21 +466,25 @@ async def handle_media(client, message):
     mode = user_modes[user_id]
     apply_wm = user_watermarks[user_id]
 
+    # Media group (album) handling
     if message.media_group_id:
         mg_id = message.media_group_id
         if mg_id not in media_group_cache:
             media_group_cache[mg_id] = []
-            asyncio.create_task(process_album_task(client, message, mg_id, user_id, mode, apply_wm))
+            asyncio.create_task(
+                process_album_task(client, message, mg_id, user_id, mode, apply_wm)
+            )
         media_group_cache[mg_id].append(message)
         return
 
-    status_msg = await message.reply_text("🔄 Processing media...")
+    status_msg = await message.reply_text("🔄 Processing media with stealth wash...")
 
     try:
         processed_path = await process_single_file(client, message, user_id, mode, apply_wm)
-        ext = processed_path.split(".")[-1].lower()
 
-        if ext in ['jpg', 'jpeg', 'png', 'webp']:
+        if mode == "📸 Image Stealth Wash" or (
+            processed_path.lower().endswith((".jpg", ".jpeg", ".png", ".webp"))
+        ):
             await message.reply_photo(photo=processed_path)
         else:
             await message.reply_video(video=processed_path, supports_streaming=True)
@@ -367,12 +494,13 @@ async def handle_media(client, message):
         selected_caption, _ = random.choice(CAPTIONS_SET)
         await message.reply_text(f"📝 **CAPTION:**\n`{selected_caption}`")
 
-    except Exception as e:
-        await safe_edit(status_msg, f"❌ Error: {str(e)}")
-    finally:
-        if 'processed_path' in locals() and os.path.exists(processed_path):
+        if os.path.exists(processed_path):
             os.remove(processed_path)
 
+    except Exception as e:
+        await safe_edit(status_msg, f"❌ Error: {str(e)[:300]}")
+
 if __name__ == "__main__":
-    print("🚀 Clean Ghost Operator Active (V5.0 Clean)...")
+    print("🚀 Clean Ghost Operator V6.0 (Production) Active...")
+    print(f"🔤 Font status: {'READY' if os.path.exists(FONT_FILE) else 'MISSING'}")
     app.run()
