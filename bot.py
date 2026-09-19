@@ -6,9 +6,6 @@ import sys
 import subprocess
 import urllib.request
 
-# ==========================================
-# AUTO INSTALL
-# ==========================================
 try:
     import yt_dlp
 except ImportError:
@@ -18,9 +15,6 @@ except ImportError:
 from pyrogram import Client, filters
 from pyrogram.types import ReplyKeyboardMarkup, KeyboardButton, InputMediaPhoto, InputMediaVideo
 
-# ==========================================
-# BOT CREDENTIALS
-# ==========================================
 API_ID = 36511364
 API_HASH = "249685fabdef6018e8c84dec25942b91"
 BOT_TOKEN = "8608879552:AAHwDrvWXsBSR2H7E8B-E4gPVOie-052urw"
@@ -35,23 +29,19 @@ FONT_URL = "https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37/ttf/DejaVuSans.tt
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 os.makedirs(PROCESSED_DIR, exist_ok=True)
 
-# ==========================================
-# FONT DOWNLOAD
-# ==========================================
 def ensure_font():
     if not os.path.exists(FONT_FILE):
-        print("⬇️ Downloading font...")
+        print("Downloading font...")
         try:
             urllib.request.urlretrieve(FONT_URL, FONT_FILE)
-            print("✅ Font downloaded")
+            print("Font downloaded")
         except Exception as e:
-            print(f"⚠️ Font download failed: {e}")
+            print(f"Font download failed: {e}")
     else:
-        print("✅ Font already present")
+        print("Font already present")
 
 ensure_font()
 
-# Memory
 user_modes = {}
 user_watermarks = {}
 media_group_cache = {}
@@ -97,7 +87,7 @@ def get_main_menu():
 @app.on_message(filters.command(["start", "menu"]))
 async def start_cmd(client, message):
     await message.reply_text(
-        "🤖 **GHOST OPERATOR ACTIVE (V6.1 FINAL)**\n"
+        "🤖 **GHOST OPERATOR ACTIVE (V6.2 FINAL)**\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n"
         "Send any media or Instagram link directly!",
         reply_markup=get_main_menu()
@@ -284,10 +274,14 @@ def fetch_insta(url, folder):
             return ""
         return (info.get("description") or info.get("title") or "").strip()
 
-@app.on_message(filters.text & \~filters.command(["start", "menu"]))
+@app.on_message(filters.text)
 async def handle_text(client, message):
     user_id = message.from_user.id
-    text = message.text.strip()
+    text = message.text.strip() if message.text else ""
+
+    # Skip commands
+    if text.startswith("/start") or text.startswith("/menu"):
+        return
 
     if text in ["📸 Image Stealth Wash", "🎥 Video Stealth Wash", "🔕 Mute & Wash Video",
                 "📺 YouTube Stealth Wash", "🔗 Insta Link Stealth Wash",
@@ -405,6 +399,6 @@ async def handle_media(client, message):
         await safe_edit(status, f"❌ Error: {str(e)[:280]}")
 
 if __name__ == "__main__":
-    print("🚀 Ghost Operator V6.1 FINAL started")
+    print("🚀 Ghost Operator V6.2 FINAL started")
     print(f"Font: {'READY' if os.path.exists(FONT_FILE) else 'MISSING'}")
     app.run()
