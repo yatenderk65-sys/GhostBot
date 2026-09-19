@@ -23,7 +23,7 @@ from pyrogram.types import ReplyKeyboardMarkup, KeyboardButton, InputMediaPhoto,
 # ==========================================
 API_ID = 36511364
 API_HASH = "249685fabdef6018e8c84dec25942b91"
-BOT_TOKEN = "8608879552:AAHwDrvWXsBSR2H7E8B-E4gPVOie-052urw"   # <-- Yahan apna token daalo
+BOT_TOKEN = "8608879552:AAHwDrvWXsBSR2H7E8B-E4gPVOie-052urw"
 
 app = Client("ghost_session", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
@@ -116,7 +116,6 @@ async def set_mode(client, message):
     await message.reply_text(f"✅ Mode set: `{message.text}`", reply_markup=get_main_menu())
 
 def build_delogo():
-    # Common watermark regions masking
     return (
         "delogo=x=10:y=10:w=180:h=55:show=0,"
         "delogo=x=w-190:y=10:w=180:h=55:show=0,"
@@ -171,7 +170,6 @@ async def process_single_file(client, message_or_path, user_id, mode, apply_wm):
             processed_path
         ]
     else:
-        # Video
         if "YouTube" in mode:
             speed, crop, contrast, bright, sat, crf, preset = 1.035, 0.96, 1.04, 0.015, 1.06, 19, "medium"
         else:
